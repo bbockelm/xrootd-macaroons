@@ -20,6 +20,9 @@ You will need to change `all.sitename` accordingly.  The secret key is a symmetr
 key necessary to verify macaroons; the same key must be deployed to all XRootD
 servers in your cluster.
 
+**NOTE**: you must have a functioning GSI authentication working in XRootD in order
+authenticate and retrieve the macaroon.
+
 The secret key must be base64-encoded.  The most straightforward way to generate
 this is the following:
 
@@ -33,7 +36,7 @@ Usage
 To generate a macaroon for personal use, you can run:
 
 ```
-macaroon-init https://host.example.com//path/to/directory/ --validity 60 --activity DOWNLOAD,UPLOAD
+macaroon-init https://host.example.com//path/to/directory/ 60 DOWNLOAD,UPLOAD
 ```
 
 (the `macaroon-init` CLI can be found as part of the `x509-scitokens-issuer-client` package).  This
@@ -43,12 +46,7 @@ specified at `/path/to/directory`, provided that your X509 identity has that acc
 The output will look like the following:
 
 ```
-Querying https://host.example.com//path/to/directory/ for new token.
-Validity: PT60M, activities: DOWNLOAD,UPLOAD,READ_METADATA.
-Successfully generated a new token:
-{
-  "macaroon":"MDAxY2xvY2F0aW9uIFQyX1VTX05lYnJhc2thCjAwMzRpZGVudGlmaWVyIGMzODU3MjQ3LThjYzItNGI0YS04ZDUwLWNiZDYzN2U2MzJhMQowMDUyY2lkIGFjdGl2aXR5OlJFQURfTUVUQURBVEEsVVBMT0FELERPV05MT0FELERFTEVURSxNQU5BR0UsVVBEQVRFX01FVEFEQVRBLExJU1QKMDAyZmNpZCBhY3Rpdml0eTpET1dOTE9BRCxVUExPQUQsUkVBRF9NRVRBREFUQQowMDM2Y2lkIHBhdGg6L2hvbWUvY3NlNDk2L2Jib2NrZWxtL3RtcC94cm9vdGRfZXhwb3J0LwowMDI0Y2lkIGJlZm9yZToyMDE4LTA2LTE1VDE4OjE5OjI5WgowMDJmc2lnbmF0dXJlIFXI_x3v8Tq1jYcP-2WUvPV-BIewn5MHRODVu8UszyYkCg"
-}
+MDAxY2xvY2F0aW9uIFQyX1VTX05lYnJhc2thCjAwMzRpZGVudGlmaWVyIGMzODU3MjQ3LThjYzItNGI0YS04ZDUwLWNiZDYzN2U2MzJhMQowMDUyY2lkIGFjdGl2aXR5OlJFQURfTUVUQURBVEEsVVBMT0FELERPV05MT0FELERFTEVURSxNQU5BR0UsVVBEQVRFX01FVEFEQVRBLExJU1QKMDAyZmNpZCBhY3Rpdml0eTpET1dOTE9BRCxVUExPQUQsUkVBRF9NRVRBREFUQQowMDM2Y2lkIHBhdGg6L2hvbWUvY3NlNDk2L2Jib2NrZWxtL3RtcC94cm9vdGRfZXhwb3J0LwowMDI0Y2lkIGJlZm9yZToyMDE4LTA2LTE1VDE4OjE5OjI5WgowMDJmc2lnbmF0dXJlIFXI_x3v8Tq1jYcP-2WUvPV-BIewn5MHRODVu8UszyYkCg
 ```
 
 The contents of the `macaroon` key is your new security token.  Anyone you share it with will be able to read and write from the same path.
