@@ -1,7 +1,6 @@
 
 #include <fcntl.h>
 
-#include <openssl/bio.h>
 #include <openssl/evp.h>
 
 #include <XrdOuc/XrdOucStream.hh>
@@ -170,62 +169,39 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
     return false;
   }
 
-  BIO *bio, *b64, *bio_out;
-  char inbuf[512];
-  int inlen;
+  unsigned char inbuf[1024], outbuf[1024];
+  int inlen, outlen, outtmp;
 
-  b64 = BIO_new(BIO_f_base64());
-  if (!b64)
-  {
-    log->Emsg("Config", "Failed to allocate base64 filter");
-    return false;
-  }
-  bio = BIO_new_fp(fp, 0); // fp will be closed when BIO is freed.
-  if (!bio)
-  {
-    BIO_free_all(b64);
-    log->Emsg("Config", "Failed to allocate BIO filter");
-    return false;
-  }
-  bio_out = BIO_new(BIO_s_mem());
-  if (!bio_out)
-  {
-    BIO_free_all(b64);
-    BIO_free_all(bio);
-    log->Emsg("Config", "Failed to allocate BIO output");
+  inlen = fread(inbuf, 1, sizeof(inbuf), fp);
+  fclose(fp);
+
+  if (inlen <= 0) {
+    printf("Config %s %s", "Failure when reading secret key", strerror(errno));
     return false;
   }
 
-  BIO_push(b64, bio);
-  while ((inlen = BIO_read(b64, inbuf, 512)) > 0)
-  {
-    if (inlen < 0) {
-      if (errno == EINTR) continue;
-      break;
-    } else {
-      BIO_write(bio_out, inbuf, inlen);
-    }
-  }
-  if (inlen < 0) {
-    BIO_free_all(b64);
-    BIO_free_all(bio_out);
-    log->Emsg("Config", "Failure when reading secret key", strerror(errno));
-    return false;
-  }
-  if (!BIO_flush(bio_out)) {
-    BIO_free_all(b64);
-    BIO_free_all(bio_out);
-    log->Emsg("Config", "Failure when flushing secret key", strerror(errno));
+  EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+  if (ctx == NULL) {
+    log->Emsg("Config", "Failed to allocate EVP context");
     return false;
   }
 
-  char *decoded;
-  long data_len = BIO_get_mem_data(bio_out, &decoded);
-  BIO_free_all(b64);
+  EVP_DecodeInit(ctx);
 
-  secret = std::string(decoded, data_len);
+  if (EVP_DecodeUpdate(ctx, outbuf, &outlen, inbuf, inlen) < 0) {
+    log->Emsg("Config", "Failure when decoding secret key");
+    EVP_ENCODE_CTX_free(ctx);
+    return false;
+  }
+  if (EVP_DecodeFinal(ctx, outbuf + outlen, &outtmp) < 0) {
+    log->Emsg("Config", "Failure when completing decode of secret key");
+    EVP_ENCODE_CTX_free(ctx);
+    return false;
+  }
+  EVP_ENCODE_CTX_free(ctx);
+  outlen += outtmp;
 
-  BIO_free_all(bio_out);
+  std::string secret = std::string(reinterpret_cast<const char*>(outbuf), outlen);
 
   if (secret.size() < 32) {
     log->Emsg("Config", "Secret key is too short; must be 32 bytes long.  Try running 'openssl rand -base64 -out", val, "64' to generate a new key");
